@@ -1,186 +1,171 @@
-# Hệ Thống Lưu Trữ Phân Tán Key–Value 
+# Hệ thống lưu trữ Key–Value phân tán (XML-RPC)
 
-## 1. Giới thiệu
+README này mô tả **đúng theo code hiện tại** trong dự án, gồm cách xây dựng môi trường, chạy hệ thống và kiểm thử.
 
-Đây là đồ án xây dựng **hệ thống lưu trữ dữ liệu dạng Key–Value hoạt động trên môi trường phân tán** gồm nhiều node. Hệ thống cho phép các node phối hợp lưu trữ và sao lưu dữ liệu nhằm đảm bảo:
+## 1) Tổng quan
 
-* **Consistency (Tính nhất quán)**: Dữ liệu được đồng bộ giữa các node.
-* **Availability (Khả năng sẵn sàng)**: Client có thể truy cập dữ liệu từ bất kỳ node nào còn hoạt động.
-* **Fault Tolerance (Khả năng chịu lỗi)**: Hệ thống vẫn hoạt động khi một hoặc nhiều node bị tắt.
+Hệ thống gồm nhiều node lưu dữ liệu dạng `key -> value`, giao tiếp qua **XML-RPC**.
 
-Hệ thống sử dụng **XML-RPC qua HTTP** để giao tiếp giữa các node với nhau và giữa client với node.
+- `PUT`: lưu/cập nhật dữ liệu
+- `GET`: đọc dữ liệu
+- `DELETE`: xóa dữ liệu
+- Replication: node nhận lệnh từ client sẽ đẩy dữ liệu sang các node hàng xóm
+- Recovery: node vừa khởi động sẽ thử kéo dữ liệu từ hàng xóm đầu tiên đang online
+- Heartbeat: các node gửi tín hiệu sống định kỳ để phát hiện node hỏng
 
----
-
-## 2. Tính năng chính
-
-* **Thao tác dữ liệu cơ bản**
-
-  * `PUT`: Lưu hoặc cập nhật dữ liệu theo cặp key–value
-  * `GET`: Lấy dữ liệu theo key
-  * `DELETE`: Xóa dữ liệu theo key
-
-* **Phân tán & Sao lưu (Replication)**
-  Khi một node nhận dữ liệu mới, nó sẽ tự động **đồng bộ (replicate)** dữ liệu sang các node hàng xóm trong cụm.
-
-* **Chịu lỗi (Fault Tolerance)**
-  Hệ thống vẫn phục vụ client nếu một hoặc nhiều node bị tắt, miễn là còn ít nhất một node đang hoạt động.
-
-* **Tự động khôi phục (Auto Recovery)**
-  Khi một node bị hỏng khởi động lại, node đó sẽ tự động **kéo (pull)** dữ liệu còn thiếu từ các node khác để đồng bộ trạng thái.
-
----
-
-## 3. Yêu cầu hệ thống
-
-* **Ngôn ngữ**: Python 3.x
-* **Thư viện**: Chỉ sử dụng thư viện chuẩn của Python (không cần cài thêm bằng `pip`)
-
-  * `xmlrpc.server`
-  * `xmlrpc.client`
-  * `sys`, `threading` (nếu có)
-
----
-
-## 4. Cấu trúc thư mục
+## 2) Cấu trúc mã nguồn
 
 ```text
-/DoAnGK
-├── node.py       # Mã nguồn Node (Server)
-├── client.py     # Mã nguồn Client (Người dùng)
-└── README.md     # Tài liệu hướng dẫn (file này)
+UngDungPhanTan/
+├── node.py      # Node server XML-RPC
+├── client.py    # Client CLI
+└── README.md
 ```
 
----
+## 3) Yêu cầu hệ thống
 
-## 5. Hướng dẫn cài đặt và chạy
+- Python 3.x
+- Chỉ dùng thư viện chuẩn Python (không cần `pip install`)
 
-### Bước 1: Khởi động các Node trong Cluster
+## 4) Xây dựng (setup)
 
-Mỗi node sẽ chạy trên một cổng (port) khác nhau và **biết địa chỉ của các node còn lại**.
+Không có bước build riêng.
 
-Mở **3 cửa sổ Terminal/CMD**:
+Chỉ cần mở terminal trong thư mục dự án và chạy trực tiếp bằng Python.
 
-**Terminal 1 – Node A (Port 8000)**
+## 5) Chạy hệ thống
 
+## 5.1 Chạy cluster 3 node (khuyến nghị)
+
+Mở 3 terminal khác nhau:
+
+**Terminal 1**
 ```bash
 python node.py 8000 8001 8002
 ```
 
-**Terminal 2 – Node B (Port 8001)**
-
+**Terminal 2**
 ```bash
 python node.py 8001 8000 8002
 ```
 
-**Terminal 3 – Node C (Port 8002)**
-
+**Terminal 3**
 ```bash
 python node.py 8002 8000 8001
 ```
 
-Sau khi chạy, mỗi node sẽ hiển thị log cho biết node đang lắng nghe và kết nối thành công tới các node khác.
+> Lưu ý quan trọng: Nếu chạy `python node.py 8000` (không truyền hàng xóm), node đó sẽ chạy **độc lập**, dữ liệu không tự đồng bộ sang node khác.
 
----
+## 5.2 Chạy client
 
-### Bước 2: Chạy Client
-
-Mở **Terminal thứ 4** và kết nối Client tới **bất kỳ node nào** trong cluster (ví dụ Node 8000):
+Mở terminal mới:
 
 ```bash
 python client.py 8000
 ```
 
-Client có thể gửi các lệnh `PUT`, `GET`, `DELETE` tới node đã kết nối.
+Hoặc kết nối sang node khác:
 
----
+```bash
+python client.py 8001
+python client.py 8002
+```
 
-## 6. Kịch bản kiểm thử (Demo Scenario)
+## 6) Kiểm thử hệ thống
 
-### Kịch bản 1: Sao lưu dữ liệu (Replication)
+## Kịch bản A — PUT/GET trên cùng một node
 
-1. Client kết nối tới Node 8000.
-2. Thực hiện:
-
-   ```
-   PUT sinhvien Nguyen Van A
-   ```
-3. Quan sát Terminal của Node 8001 và Node 8002.
-
-**Kết quả mong đợi**:
-Cả Node 8001 và Node 8002 đều hiển thị log cho biết đã nhận được dữ liệu `sinhvien` từ Node 8000.
-
----
-
-### Kịch bản 2: Kiểm tra tính nhất quán (Consistency)
-
-1. Tắt Client hiện tại.
-2. Chạy lại Client và kết nối tới Node 8001:
+1. Chạy node 8000 (có hoặc không có hàng xóm đều được).
+2. Chạy client vào 8000:
 
    ```bash
-   python client.py 8001
+   python client.py 8000
    ```
-3. Thực hiện:
+3. Trong menu client:
+   - `1` -> Key: `test`, Value: `123`
+   - `2` -> Key: `test`
 
+Kết quả mong đợi: trả về `123`.
+
+## Kịch bản B — Replication giữa node
+
+1. Chạy **đúng cluster có neighbors** như mục 5.1.
+2. Dùng client kết nối node 8000, thực hiện `PUT test 123`.
+3. Dùng client khác kết nối node 8001, thực hiện `GET test`.
+
+Kết quả mong đợi: node 8001 trả về `123`.
+
+## Kịch bản C — Trường hợp dễ nhầm: chạy node độc lập
+
+1. Chạy:
+
+   ```bash
+   python node.py 8000
+   python node.py 8001
    ```
-   GET sinhvien
-   ```
+2. `PUT test 123` vào node 8000.
+3. `GET test` ở node 8001.
 
-**Kết quả mong đợi**:
-Client nhận được giá trị `Nguyen Van A` dù dữ liệu ban đầu được ghi vào Node 8000.
+Kết quả mong đợi: `Not Found` (đúng theo code hiện tại vì 2 node không phải hàng xóm của nhau).
 
----
+## Kịch bản D — DELETE đồng bộ
 
-### Kịch bản 3: Chịu lỗi và khôi phục (Fault Tolerance & Recovery)
+1. Cluster chạy như mục 5.1.
+2. `PUT test 123` vào node 8000.
+3. `DELETE test` ở node 8000.
+4. `GET test` ở node 8001/8002.
 
-1. Tắt Node 8002 (Ctrl + C tại Terminal của Node 8002).
-2. Client đang kết nối tới Node 8000 hoặc 8001 thực hiện:
+Kết quả mong đợi: `Not Found` trên các node còn lại.
 
-   ```
-   PUT exam Passed
-   ```
-3. Bật lại Node 8002:
+## Kịch bản E — Recovery khi node khởi động lại
+
+1. Cluster chạy đủ 3 node.
+2. Tắt node 8002.
+3. Ghi dữ liệu mới ở 8000 hoặc 8001.
+4. Bật lại node 8002 bằng lệnh có neighbors:
 
    ```bash
    python node.py 8002 8000 8001
    ```
-4. Quan sát Terminal của Node 8002.
 
-**Kết quả mong đợi**:
+Kết quả mong đợi: lúc khởi động, node 8002 tự đồng bộ dữ liệu từ hàng xóm online.
 
-* Node 8002 hiển thị thông báo đang đồng bộ dữ liệu.
-* Node 8002 tự động tải lại cả `sinhvien` và `exam`.
-* Client kết nối tới Node 8002 và thực hiện `GET exam` sẽ nhận được kết quả `Passed`.
+## 7) Nhật ký (log) cần quan sát
 
----
+- Khi ghi dữ liệu:
+  - `[port] PUT request từ 'client': key = value`
+  - `-> Đã sao lưu sang Node ...`
+- Khi đọc:
+  - `[port] GET: key -> ...`
+- Khi phát hiện lỗi node:
+  - `PHÁT HIỆN Node ... BỊ HỎNG!`
 
-## 7. Kiến trúc hệ thống
+## 8) Lỗi thường gặp và cách xử lý
 
-### 7.1 Mô hình mạng
+## `GET` ở node khác trả `Not Found`
 
-* **Full Mesh (Lưới đầy đủ)**:
-  Mỗi node đều biết địa chỉ (port) của tất cả các node còn lại trong cluster.
+Nguyên nhân phổ biến nhất: bạn khởi động node **không truyền neighbors**.
 
-### 7.2 Cơ chế đồng bộ dữ liệu
+✅ Cách đúng (ví dụ 2 node):
 
-* **Push (Khi ghi dữ liệu)**
-  Khi node nhận lệnh `PUT` hoặc `DELETE`, node đó sẽ chủ động **đẩy dữ liệu cập nhật** sang các node hàng xóm đang hoạt động.
+```bash
+python node.py 8000 8001
+python node.py 8001 8000
+```
 
-* **Pull (Khi khởi động lại)**
-  Khi một node khởi động, nó sẽ **kéo toàn bộ dữ liệu** từ node hàng xóm đầu tiên khả dụng để đồng bộ trạng thái hiện tại.
+## `Address already in use`
 
----
+Cổng đang bị chiếm. Đổi cổng khác hoặc tắt process cũ.
 
-## 8. Kết luận
+## Client báo lỗi kết nối
 
-Đồ án mô phỏng một **Distributed Key–Value Store đơn giản**, giúp minh họa các khái niệm quan trọng trong hệ phân tán như:
+Đảm bảo node đích đã chạy trước, đúng cổng, và không bị firewall chặn localhost.
 
-* Replication
-* Consistency
-* Fault Tolerance
-* Recovery
+## 9) Giới hạn hiện tại của code
 
-Hệ thống tuy đơn giản nhưng đủ để phục vụ mục đích học tập và mở rộng nghiên cứu các kỹ thuật phân tán nâng cao hơn (quorum, leader election, vector clock, …).
+- Dữ liệu lưu trong RAM, tắt toàn bộ node sẽ mất dữ liệu.
+- `GET` đang dùng kiểm tra truthy/falsy (`return val if val else "Not Found"`), nên giá trị rỗng (`""`) hoặc `0` có thể bị trả về `Not Found`.
+- Chưa có cơ chế quorum/leader election.
 
 ---
 
