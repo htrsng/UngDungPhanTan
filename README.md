@@ -1,6 +1,4 @@
-# Hệ thống lưu trữ Key–Value phân tán (XML-RPC)
-
-README này mô tả **đúng theo code hiện tại** trong dự án, gồm cách xây dựng môi trường, chạy hệ thống và kiểm thử.
+# Hệ thống lưu trữ Key–Value phân tán
 
 ## 1) Tổng quan
 
